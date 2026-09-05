@@ -1,4 +1,5 @@
 
+
 library(shiny)
 
 ui <- fluidPage(
@@ -47,11 +48,13 @@ ui <- fluidPage(
     
     mainPanel(
       
+      # Question and answer appear together on the same line
       div(
         class = "question",
         textOutput("question")
       ),
       
+      # Buttons
       div(
         class = "button-container",
         
@@ -73,32 +76,28 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  # Store the current question
-  question <- reactiveVal(NULL)
+  # Generate the first question automatically
+  question <- reactiveVal(
+    list(
+      num1 = sample(1:12, 1),
+      num2 = sample(1:12, 1)
+    )
+  )
   
   # Keep track of whether the answer is visible
   show_answer <- reactiveVal(FALSE)
   
-  
-  # Function to generate a question
-  generate_question <- function() {
+  # Generate a new question
+  observeEvent(input$new_question, {
     
-    # Get the bounds from the input boxes
-    lower <- input$lower
-    upper <- input$upper
-    
-    # Don't generate a question if the bounds are invalid
-    if (is.null(lower) || is.null(upper) || lower > upper) {
+    # Make sure the lower number isn't greater than the upper number
+    if (input$lower > input$upper) {
       return()
     }
     
-    # num1 is sampled FROM THE SEQUENCE lower:upper
-    num1 <- sample(seq(lower, upper), 1)
+    num1 <- sample(input$lower:input$upper, 1)
+    num2 <- sample(1:12, 1)
     
-    # num2 is independently sampled from 1 to 12
-    num2 <- sample(seq(1, 12), 1)
-    
-    # Store the question
     question(
       list(
         num1 = num1,
@@ -108,50 +107,19 @@ server <- function(input, output, session) {
     
     # Hide the answer for the new question
     show_answer(FALSE)
-  }
-  
-  
-  # Generate the first question
-  observe({
-    generate_question()
   })
-  
-  
-  # Generate a new question when button is clicked
-  observeEvent(input$new_question, {
-    generate_question()
-  })
-  
-  
-  # Generate a new question if the lower bound changes
-  observeEvent(input$lower, {
-    generate_question()
-  })
-  
-  
-  # Generate a new question if the upper bound changes
-  observeEvent(input$upper, {
-    generate_question()
-  })
-  
   
   # Show the answer
   observeEvent(input$answer, {
     show_answer(TRUE)
   })
   
-  
-  # Display question
+  # Display question and, if requested, answer
   output$question <- renderText({
     
     q <- question()
     
-    if (is.null(q)) {
-      return("")
-    }
-    
     if (show_answer()) {
-      
       paste(
         q$num1,
         "x",
@@ -159,9 +127,7 @@ server <- function(input, output, session) {
         "=",
         q$num1 * q$num2
       )
-      
     } else {
-      
       paste(
         q$num1,
         "x",
