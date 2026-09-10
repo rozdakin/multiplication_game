@@ -1,4 +1,5 @@
 
+
 library(shiny)
 
 ui <- fluidPage(
@@ -24,24 +25,26 @@ ui <- fluidPage(
         padding: 15px 30px;
         margin: 10px;
       }
+      
+      .checkbox-container {
+        font-size: 18px;
+      }
     "))
   ),
   
   sidebarLayout(
     
     sidebarPanel(
-      numericInput(
-        inputId = "lower",
-        label = "Lower number:",
-        value = 1,
-        min = 0
-      ),
       
-      numericInput(
-        inputId = "upper",
-        label = "Higher number:",
-        value = 12,
-        min = 1
+      div(
+        class = "checkbox-container",
+        
+        checkboxGroupInput(
+          inputId = "numbers",
+          label = "Choose numbers for the first number:",
+          choices = 1:12,
+          selected = 1:12
+        )
       )
     ),
     
@@ -71,6 +74,7 @@ ui <- fluidPage(
   )
 )
 
+
 server <- function(input, output, session) {
   
   # Store the current question
@@ -80,23 +84,29 @@ server <- function(input, output, session) {
   show_answer <- reactiveVal(FALSE)
   
   
-  # Function to generate a question
+  # Generate a question
   generate_question <- function() {
     
-    # Get the bounds from the input boxes
-    lower <- input$lower
-    upper <- input$upper
+    # Get the CURRENTLY checked numbers
+    selected_numbers <- as.numeric(input$numbers)
     
-    # Don't generate a question if the bounds are invalid
-    if (is.null(lower) || is.null(upper) || lower > upper) {
+    # If nothing is checked, clear the question
+    if (length(selected_numbers) == 0) {
+      question(NULL)
+      show_answer(FALSE)
       return()
     }
     
-    # num1 is sampled FROM THE SEQUENCE lower:upper
-    num1 <- sample(seq(lower, upper), 1)
+    # If only one number is checked, ALWAYS use that number.
+    # Otherwise, randomly select from the checked numbers.
+    if (length(selected_numbers) == 1) {
+      num1 <- selected_numbers[1]
+    } else {
+      num1 <- sample(selected_numbers, size = 1)
+    }
     
-    # num2 is independently sampled from 1 to 12
-    num2 <- sample(seq(1, 12), 1)
+    # Second number is always randomly selected from 1 through 12
+    num2 <- sample(1:12, size = 1)
     
     # Store the question
     question(
@@ -106,31 +116,20 @@ server <- function(input, output, session) {
       )
     )
     
-    # Hide the answer for the new question
+    # Hide the answer
     show_answer(FALSE)
   }
   
   
-  # Generate the first question
-  observe({
+  # Generate the initial question and regenerate whenever
+  # the checkbox selection changes
+  observeEvent(input$numbers, {
     generate_question()
-  })
+  }, ignoreInit = FALSE)
   
   
-  # Generate a new question when button is clicked
+  # Generate a new question when the button is clicked
   observeEvent(input$new_question, {
-    generate_question()
-  })
-  
-  
-  # Generate a new question if the lower bound changes
-  observeEvent(input$lower, {
-    generate_question()
-  })
-  
-  
-  # Generate a new question if the upper bound changes
-  observeEvent(input$upper, {
     generate_question()
   })
   
@@ -141,13 +140,13 @@ server <- function(input, output, session) {
   })
   
   
-  # Display question
+  # Display the question
   output$question <- renderText({
     
     q <- question()
     
     if (is.null(q)) {
-      return("")
+      return("Please select at least one number.")
     }
     
     if (show_answer()) {
@@ -171,6 +170,7 @@ server <- function(input, output, session) {
     }
   })
 }
+
 
 shinyApp(ui = ui, server = server)
 
